@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+</head>
+<body>
+<title>ตารางเวรผู้ช่วยเหลือคนไข้</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* Layout: sticky toolbar, tabbed work surface; grids scroll sideways inside their own frames */
+:root{
+  --bg:#eef2f0; --surface:#ffffff; --sunk:#f6f8f7; --ink:#1b2826; --muted:#5d6d6a; --line:#d5dedb;
+  --accent:#0d665d; --accent-ink:#ffffff; --hol:#fbeee2; --hol-ink:#9a4f17;
+  --warn:#b4541a; --bad:#b3261e; --good:#2c7a3f; --badbg:#fde8e6; --warnbg:#fff1df;
+  --p1:#b8483a; --p2:#2f66a8; --p3:#7d4fa6; --p4:#17806a;
+  --p1bg:#f8e3df; --p2bg:#e0eaf6; --p3bg:#ece3f4; --p4bg:#dcefe9;
+  --f-display:"Bai Jamjuree","IBM Plex Sans Thai",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121a19; --surface:#1a2523; --sunk:#16201e; --ink:#e3ece9; --muted:#9aaba7; --line:#2d3b38;
+  --accent:#4cc2b2; --accent-ink:#06211d; --hol:#33261b; --hol-ink:#f0b27a;
+  --warn:#f0a060; --bad:#ff8a80; --good:#7fd08f; --badbg:#3a1f1d; --warnbg:#3a2c1a;
+  --p1:#f08a7a; --p2:#82aef0; --p3:#c49ae8; --p4:#6fd1b6;
+  --p1bg:#3d2622; --p2bg:#1f2d42; --p3bg:#2e2440; --p4bg:#1c3530; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121a19; --surface:#1a2523; --sunk:#16201e; --ink:#e3ece9; --muted:#9aaba7; --line:#2d3b38;
+  --accent:#4cc2b2; --accent-ink:#06211d; --hol:#33261b; --hol-ink:#f0b27a;
+  --warn:#f0a060; --bad:#ff8a80; --good:#7fd08f; --badbg:#3a1f1d; --warnbg:#3a2c1a;
+  --p1:#f08a7a; --p2:#82aef0; --p3:#c49ae8; --p4:#6fd1b6;
+  --p1bg:#3d2622; --p2bg:#1f2d42; --p3bg:#2e2440; --p4bg:#1c3530; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;margin:0}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:0 48px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.25}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;padding-block:14px}
+.brand{display:flex;flex-direction:column;min-width:0;flex:1 1 260px}
+.brand h1{font-size:1.35rem;font-weight:700}
+.brand small{color:var(--muted);font-size:.82rem}
+.monthnav{display:flex;align-items:center;gap:6px}
+.monthnav b{font-family:var(--f-display);font-size:1.1rem;min-width:9.5em;text-align:center}
+.iconbtn{border:1px solid var(--line);background:var(--surface);border-radius:8px;width:36px;height:36px;display:grid;place-items:center}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 14px;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.small{padding:4px 10px;font-size:.85rem}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+
+.stats{display:flex;flex-wrap:wrap;gap:8px 28px;padding-block:16px 4px;color:var(--muted);font-size:.9rem}
+.stats span b{color:var(--ink);font-family:var(--f-mono);font-weight:500;margin-right:4px}
+.stats .bad b{color:var(--bad)}
+
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-block:14px 18px;overflow-x:auto}
+.tab{border:0;background:none;padding:10px 14px;border-bottom:3px solid transparent;color:var(--muted);white-space:nowrap;font-weight:500}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px}
+.panel+.panel{margin-top:16px}
+.panel h2{font-size:1.08rem;margin-bottom:4px}
+.hint{color:var(--muted);font-size:.86rem;margin:2px 0 12px;max-width:75ch}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.84rem;color:var(--muted);margin-bottom:12px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse}
+.grid th,.grid td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);text-align:center;padding:0}
+.grid thead th{background:var(--sunk);font-weight:500;font-size:.78rem;padding:4px 0;min-width:38px}
+.grid thead th .d{display:block;font-family:var(--f-mono);font-size:.9rem;color:var(--ink)}
+.grid thead th .w{color:var(--muted)}
+.grid th.name{position:sticky;left:0;z-index:2;background:var(--surface);text-align:left;padding:6px 10px;min-width:150px;font-weight:500;font-size:.88rem;white-space:nowrap}
+.grid thead th.name{background:var(--sunk)}
+.grid .holcol{background:var(--hol)}
+.grid thead th.holcol{background:var(--hol)}
+.grid thead th.holcol .w{color:var(--hol-ink)}
+.grid thead th.ph .w::after{content:" นข";color:var(--hol-ink);font-weight:600}
+.grid thead th.click{cursor:pointer}
+.grid thead th.click:hover{outline:2px solid var(--accent);outline-offset:-2px}
+.grid td{height:38px;font-size:.82rem}
+.grid td.req{cursor:pointer}
+.grid td.req:hover{outline:2px solid var(--accent);outline-offset:-2px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:0}
+.chip{display:inline-block;padding:1px 5px;border-radius:5px;font-weight:600;font-size:.78rem;line-height:1.4}
+.c-on{background:var(--p4bg);color:var(--good)}
+.c-off{color:var(--muted)}
+.c-L{background:var(--warnbg);color:var(--warn)}
+.foot td,.foot th{background:var(--sunk)}
+.badtxt{color:var(--bad);font-weight:600}
+
+.codes{display:flex;flex-direction:column;gap:1px;align-items:center;font-family:var(--f-display);font-weight:600;font-size:.82rem;line-height:1.15}
+
+/* day table */
+.days{width:100%;min-width:620px}
+.days th,.days td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:middle}
+.days thead th{background:var(--sunk);font-size:.82rem;color:var(--muted);font-weight:500}
+.days tr.holrow td{background:var(--hol)}
+.days td.date{white-space:nowrap;font-size:.88rem}
+.days td.date .num{display:inline-block;min-width:1.8em}
+.days .type{font-size:.76rem;color:var(--hol-ink)}
+.slot{display:flex;gap:4px;align-items:center}
+.slot select{flex:1;min-width:0;border:1px solid var(--line);border-radius:6px;padding:4px 6px;background:var(--surface)}
+.slot select.empty{border-color:var(--bad);background:var(--badbg)}
+.slot select.warn{border-color:var(--warn);background:var(--warnbg)}
+.lock{border:1px solid transparent;background:none;border-radius:6px;width:28px;height:28px;display:grid;place-items:center;color:var(--muted);flex:none}
+.lock.on{color:var(--accent);border-color:var(--line);background:var(--sunk)}
+.na{color:var(--muted);font-size:.8rem}
+
+.issues{margin:0;padding-left:1.2em;font-size:.9rem}
+.issues li{margin-block:3px}
+.issues .b{color:var(--bad)} .issues .w{color:var(--warn)}
+.ok{color:var(--good)}
+
+/* summary */
+.sum{width:100%;min-width:780px}
+.sum th,.sum td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:right;font-variant-numeric:tabular-nums}
+.sum th:first-child,.sum td:first-child{text-align:left}
+.sum thead th{background:var(--sunk);font-size:.8rem;font-weight:500;color:var(--muted)}
+.sum td.tot{font-weight:600}
+
+/* settings */
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:16px}
+.pcard{border:1px solid var(--line);border-radius:10px;padding:14px;min-width:0}
+.pcard h3{font-size:1rem;display:flex;align-items:center;gap:6px;margin-bottom:10px}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px 12px;margin-bottom:12px}
+.fields label{display:flex;flex-direction:column;font-size:.8rem;color:var(--muted);gap:3px}
+.fields input,.fields select{border:1px solid var(--line);border-radius:6px;padding:5px 8px;background:var(--surface);font-size:.92rem}
+.chk{flex-direction:row!important;align-items:center;gap:6px!important;color:var(--ink)!important;font-size:.86rem!important}
+.allow th,.allow td{padding:3px 4px;text-align:center;font-size:.82rem}
+.allow th{font-weight:500;color:var(--muted)}
+.allow td:first-child{text-align:left;font-weight:500;padding-right:10px;white-space:nowrap}
+.allow input{width:17px;height:17px;accent-color:var(--accent)}
+
+/* popover */
+.pop{position:fixed;z-index:50;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgb(0 0 0 / .18);padding:6px;width:210px}
+.pop .ttl{font-size:.8rem;color:var(--muted);padding:4px 8px 6px}
+.pop button{display:flex;width:100%;border:0;background:none;text-align:left;padding:7px 8px;border-radius:6px;gap:8px;align-items:center;font-size:.9rem}
+.pop button:hover,.pop button:focus-visible{background:var(--sunk)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:.9rem;z-index:60;max-width:calc(100% - 32px)}
+.busy{opacity:.55;pointer-events:none}
+@media (max-width:640px){.monthnav b{min-width:7.5em;font-size:1rem}.panel{padding:14px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header class="top"><div class="wrap">
+  <div class="brand"><h1>ตารางเวรผู้ช่วยเหลือคนไข้</h1><small>จัดเวรอัตโนมัติตามเงื่อนไขรายบุคคล · แก้ไขรายช่องได้</small></div>
+  <div class="monthnav">
+    <button class="iconbtn" id="prevM" aria-label="เดือนก่อน">‹</button>
+    <b id="monthLbl"></b>
+    <button class="iconbtn" id="nextM" aria-label="เดือนถัดไป">›</button>
+  </div>
+  <div class="actions">
+    <button class="btn primary" id="runBtn">จัดเวรอัตโนมัติ</button>
+    <button class="btn" id="exOverview">Export ภาพรวม</button>
+    <button class="btn" id="exDaily">Export รายวัน</button>
+    <button class="btn" id="exPerson">Export รายบุคคล</button>
+  </div>
+</div></header>
+
+<main class="wrap">
+  <div class="stats" id="stats"></div>
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" data-tab="sched" aria-selected="true">ตารางเวร</button>
+    <button class="tab" role="tab" data-tab="req" aria-selected="false">ลงขออยู่ / ไม่อยู่ / ลา</button>
+    <button class="tab" role="tab" data-tab="sum" aria-selected="false">สรุปรายบุคคล</button>
+    <button class="tab" role="tab" data-tab="set" aria-selected="false">ตั้งค่าเงื่อนไข</button>
+  </nav>
+
+  <section id="tab-sched">
+    <div class="panel">
+      <h2>ภาพรวมทั้งเดือน</h2>
+      <p class="hint">ช = เช้า 08.00–16.00 · บ = บ่าย 16.00–24.00 · ด = ดึก 00.00–08.00 ของวันที่นั้น · คอลัมน์สีส้ม = วันหยุด/นักขัตฤกษ์</p>
+      <div class="scroll"><table class="grid" id="overGrid"></table></div>
+    </div>
+    <div class="panel">
+      <h2>ตรวจสอบเงื่อนไข</h2>
+      <ul class="issues" id="issues"></ul>
+    </div>
+    <div class="panel">
+      <h2>ตารางรายวัน</h2>
+      <p class="hint">เปลี่ยนชื่อในช่องได้เลย ช่องที่แก้เองจะถูกล็อก 🔒 และคงไว้เมื่อกดจัดเวรอัตโนมัติใหม่ ช่องสีส้มคือขัดเงื่อนไข (ชี้เพื่อดูเหตุผล)</p>
+      <div class="actions" style="margin-bottom:10px"><button class="btn small" id="unlockAll">ปลดล็อกทั้งหมด</button><button class="btn small" id="clearAll">ล้างตารางเดือนนี้</button></div>
+      <div class="scroll"><table class="days" id="dayTable"></table></div>
+    </div>
+  </section>
+
+  <section id="tab-req" hidden>
+    <div class="panel">
+      <h2>ความต้องการรายวัน</h2>
+      <p class="hint">คลิกช่องเพื่อเลือก ขออยู่เวร / ขอเวรเช้า-บ่าย-ดึก / ไม่อยู่เวร / ลา · คลิกหัววันที่เพื่อกำหนดหรือยกเลิกวันนักขัตฤกษ์ (นข) แล้วกดจัดเวรอัตโนมัติอีกครั้ง</p>
+      <div class="legend">
+        <span><span class="chip c-on">อยู่</span> ขออยู่เวร (เวรใดก็ได้)</span>
+        <span><span class="chip c-on">ช / บ / ด</span> ขออยู่เวรนั้น</span>
+        <span><span class="chip c-off">✕</span> ไม่อยู่เวร</span>
+        <span><span class="chip c-L">ลา</span> ลา</span>
+      </div>
+      <div class="scroll"><table class="grid" id="reqGrid"></table></div>
+      <p class="hint" style="margin-top:12px">วันนักขัตฤกษ์ตั้งต้นมาจากรายการที่ตั้งไว้ในโปรแกรม (วันหยุดตามจันทรคติและวันหยุดชดเชยควรตรวจทานกับประกาศของปีนั้น)</p>
+    </div>
+  </section>
+
+  <section id="tab-sum" hidden>
+    <div class="panel">
+      <h2>สรุปจำนวนเวร</h2>
+      <p class="hint">ณัฐสุรางค์นับเวรตามลำดับวันที่ เวรแรก ๆ เท่ากับจำนวนวันทำการของเดือน (หักวันลาในวันทำการ) เป็นเวรหลัก ที่เหลือเป็น OT · คนอื่นนับเป็น OT ทั้งหมด</p>
+      <div class="scroll"><table class="sum" id="sumTable"></table></div>
+    </div>
+  </section>
+
+  <section id="tab-set" hidden>
+    <div class="panel">
+      <h2>เงื่อนไขทั่วไป</h2>
+      <div class="fields" style="max-width:640px">
+        <label>เวรติดกันได้ไม่เกิน (เวร)<input type="number" min="1" max="6" id="maxRun"></label>
+        <label>จำนวนรอบค้นหา (มาก = ช้าแต่ดีกว่า)<input type="number" min="20" max="2000" step="20" id="iters"></label>
+      </div>
+      <p class="hint">นับเวรต่อเนื่องตามเวลา เช่น บ่าย→ดึกวันถัดไป, เช้า→บ่าย→ดึก, ดึก→เช้า→บ่าย นับเป็น 3 เวรติดกัน</p>
+    </div>
+    <div class="panel">
+      <h2>เงื่อนไขรายบุคคล</h2>
+      <p class="hint">ติ๊กช่องที่ <b>อยู่ได้</b> · คอลัมน์ นข = อนุญาตเพิ่มในวันนักขัตฤกษ์ · เป้าหมายเว้นว่าง = รับส่วนที่เหลือ · เพดาน 0 = ไม่จำกัด · ช่องเวรวันหยุด/เช้าวันหยุดเว้นว่าง = ไม่จำกัด (วันหยุด = เสาร์ อาทิตย์ นักขัตฤกษ์)</p>
+      <div class="pgrid" id="pset"></div>
+      <div class="actions" style="margin-top:14px">
+        <button class="btn" id="resetSet">คืนค่าเงื่อนไขตั้งต้น</button>
+        <button class="btn" id="backup">สำรองข้อมูล (.json)</button>
+        <label class="btn" for="restoreFile">นำเข้าข้อมูล (.json)</label>
+        <input type="file" id="restoreFile" accept=".json,application/json" hidden>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="pop" id="pop" hidden></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+const SH={M:{th:'เช้า',c:'ช',time:'08.00–16.00'},A:{th:'บ่าย',c:'บ',time:'16.00–24.00'},N:{th:'ดึก',c:'ด',time:'00.00–08.00'}};
+const ORD={N:0,M:1,A:2};
+const DOW=['อา','จ','อ','พ','พฤ','ศ','ส'];
+const DOWF=['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
+const MON=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const MONS=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const PC=['p1','p2','p3','p4'];
+const REQ={on:{lbl:'อยู่',cls:'c-on',menu:'ขออยู่เวร (เวรใดก็ได้)'},M:{lbl:'ช',cls:'c-on',menu:'ขออยู่เวรเช้า'},A:{lbl:'บ',cls:'c-on',menu:'ขออยู่เวรบ่าย'},N:{lbl:'ด',cls:'c-on',menu:'ขออยู่เวรดึก'},off:{lbl:'✕',cls:'c-off',menu:'ไม่อยู่เวร'},L:{lbl:'ลา',cls:'c-L',menu:'ลา'}};
+// วันนักขัตฤกษ์ตั้งต้น (วันธรรมดาที่ต้องจัดแบบวันหยุด)
+const DEF_HOL={'2026-10':[13,23],'2026-11':[],'2026-12':[7,10,31],'2027-01':[1],'2027-04':[6,13,14,15],'2027-05':[4],'2027-06':[3],'2027-07':[28],'2027-08':[12],'2027-10':[13,22],'2027-12':[6,10,31]};
+
+const T8=()=>Array(8).fill(true), F8=()=>Array(8).fill(false);
+const pick=(arr)=>{const a=F8();arr.forEach(i=>a[i]=true);return a};
+function defaultPeople(){return [
+ {name:'รัตติกาล คำเขื่อน',mode:'ot',max:0,target:'',hmMin:2,hmMax:2,hdMax:7,noAN:true,allow:{M:T8(),A:T8(),N:T8()}},
+ {name:'นิภาพร นิกรวงศ์',mode:'ot',max:9,target:9,hmMin:'',hmMax:2,hdMax:'',noAN:false,allow:{M:pick([0,6,7]),A:pick([2,6,0]),N:pick([6,0,7])}},
+ {name:'ภัชรินทร์ ปุกคาม',mode:'ot',max:9,target:9,hmMin:'',hmMax:'',hdMax:'',noAN:false,pairPrevA:true,pairMax:1,allow:{M:F8(),A:pick([1,2,3,4,5]),N:pick([6])}},
+ {name:'ณัฐสุรางค์ ทนะขว้าง',mode:'run',max:36,target:36,hmMin:'',hmMax:'',hdMax:'',noAN:false,allow:{M:T8(),A:T8(),N:T8()}}
+];}
+const CFG_VER=2;
+
+const KEY='pca-roster-v1';
+let S=null;
+try{S=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){S=null}
+if(!S||!Array.isArray(S.people)){
+  const n=new Date(2026,9,9); n.setMonth(n.getMonth()+1);
+  S={month:ym(n.getFullYear(),n.getMonth()+1),people:defaultPeople(),maxRun:3,iters:300,months:{},cfgVer:2};
+}
+let upgraded=false;
+if(S.cfgVer!==CFG_VER){const dp=defaultPeople();S.people=dp.map((d,i)=>Object.assign(d,{name:(S.people[i]&&S.people[i].name)||d.name}));S.cfgVer=CFG_VER;upgraded=true}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function ym(y,m){return y+'-'+String(m).padStart(2,'0')}
+function parseYM(k){const [y,m]=k.split('-').map(Number);return {y,m}}
+function M(k=S.month){if(!S.months[k])S.months[k]={holidays:(DEF_HOL[k]||[]).slice(),req:{},locks:{},result:{}};return S.months[k]}
+function daysIn(k=S.month){const {y,m}=parseYM(k);return new Date(y,m,0).getDate()}
+function dow(day,k=S.month){const {y,m}=parseYM(k);return new Date(y,m-1,day).getDay()}
+function prevKey(k=S.month){const {y,m}=parseYM(k);const d=new Date(y,m-2,1);return ym(d.getFullYear(),d.getMonth()+1)}
+function isPH(day,k=S.month){if(day<1){const pk=prevKey(k);const pm=S.months[pk];return !!(pm&&pm.holidays.includes(daysIn(pk)+day))}return M(k).holidays.includes(day)}
+function isHolDay(day,k=S.month){const w=dow(day,k);return w===0||w===6||isPH(day,k)}
+function isWorkday(day,k=S.month){const w=dow(day,k);return w>=1&&w<=5&&!isPH(day,k)}
+function slotsOf(k=S.month){const n=daysIn(k),out=[];for(let d=1;d<=n;d++){const hol=isHolDay(d,k);(hol?['M','A','N']:['A','N']).forEach(s=>out.push({day:d,s,hol,t:(d-1)*3+ORD[s],key:d+s}))}return out}
+function reqOf(pi,day,k=S.month){const r=M(k).req[pi];return r?r[day]||'':''}
+function allowed(p,sl){const a=p.allow[sl.s];return !!(a[dow(sl.day)]||(isPH(sl.day)&&a[7]))}
+function num(v){return v===''||v==null?null:+v}
+function workdays(k=S.month){let c=0;for(let d=1;d<=daysIn(k);d++)if(isWorkday(d,k))c++;return c}
+function runQuota(pi,k=S.month){let c=workdays(k);for(let d=1;d<=daysIn(k);d++)if(isWorkday(d,k)&&reqOf(pi,d,k)==='L')c--;return Math.max(0,c)}
+
+// ---------- context ----------
+function newCtx(){
+  const n=daysIn(),T=n*3+6,P=S.people.length;
+  const ctx={occ:[],cnt:Array(P).fill(0),hm:Array(P).fill(0),hd:Array(P).fill(0),n:Array(P).fill(0)};
+  for(let i=0;i<P;i++)ctx.occ.push(new Uint8Array(T));
+  // last day of previous month (for consecutive-shift checks)
+  const pk=prevKey(),pm=S.months[pk];
+  if(pm&&pm.result){const ld=daysIn(pk);['N','M','A'].forEach(s=>{const pi=pm.result[ld+s];if(pi!=null&&pi!==''&&ctx.occ[pi])ctx.occ[pi][ORD[s]]=1})}
+  return ctx;
+}
+function setA(ctx,pi,sl){ctx.occ[pi][sl.t+3]=1;ctx.cnt[pi]++;if(sl.s==='N')ctx.n[pi]++;if(sl.hol){ctx.hd[pi]++;if(sl.s==='M')ctx.hm[pi]++}}
+function unsetA(ctx,pi,sl){ctx.occ[pi][sl.t+3]=0;ctx.cnt[pi]--;if(sl.s==='N')ctx.n[pi]--;if(sl.hol){ctx.hd[pi]--;if(sl.s==='M')ctx.hm[pi]--}}
+function why(pi,sl,ctx){
+  const p=S.people[pi],r=reqOf(pi,sl.day);
+  if(r==='L')return 'ลาในวันนี้';
+  if(r==='off')return 'ขอไม่อยู่เวรวันนี้';
+  if(!allowed(p,sl))return 'ไม่อยู่เวร'+SH[sl.s].th+'วัน'+(isPH(sl.day)?'นักขัตฤกษ์':DOWF[dow(sl.day)]);
+  const mx=num(p.max);if(mx&&ctx.cnt[pi]>=mx)return 'ครบเพดาน '+mx+' เวรแล้ว';
+  const hdx=num(p.hdMax);if(sl.hol&&hdx!=null&&ctx.hd[pi]>=hdx)return 'เวรวันหยุดครบ '+hdx+' เวรแล้ว';
+  const hmx=num(p.hmMax);if(sl.hol&&sl.s==='M'&&hmx!=null&&ctx.hm[pi]>=hmx)return 'เวรเช้าวันหยุดครบ '+hmx+' เวรแล้ว';
+  const o=ctx.occ[pi],i=sl.t+3;
+  if(o[i])return 'มีเวรนี้อยู่แล้ว';
+  let run=1,j=i-1;while(j>=0&&o[j]){run++;j--}j=i+1;while(j<o.length&&o[j]){run++;j++}
+  if(run>S.maxRun)return 'เวรติดกันเกิน '+S.maxRun+' เวร';
+  if(p.pairPrevA&&sl.s==='N'){
+    const pm=num(p.pairMax)||0;if(ctx.n[pi]>=pm)return pm?'อยู่คู่บ่าย→ดึกครบ '+pm+' ครั้งแล้ว':'ไม่อยู่เวรดึก';
+    if(!o[i-1])return 'ต้องได้เวรบ่ายวันก่อนหน้าคู่กัน (บ่าย'+DOWF[dow(sl.day-1)]+'→ดึก'+DOWF[dow(sl.day)]+')';
+  }
+  if(p.noAN){
+    if(sl.s==='A'&&isWorkday(sl.day)&&o[i+1])return 'บ่ายต่อดึกในวันจันทร์–ศุกร์ไม่ได้';
+    if(sl.s==='N'&&isWorkday(sl.day-1)&&o[i-1])return 'บ่ายต่อดึกในวันจันทร์–ศุกร์ไม่ได้';
+  }
+  return '';
+}
+function targets(slots){
+  const P=S.people.length,t=Array(P).fill(null);let fixed=0,autos=[];
+  S.people.forEach((p,i)=>{const v=num(p.target);if(v==null)autos.push(i);else{t[i]=v;fixed+=v}});
+  const rest=Math.max(0,slots.length-fixed);autos.forEach(i=>{t[i]=Math.round(rest/autos.length);const mx=num(S.people[i].max);if(mx)t[i]=Math.min(t[i],mx)});
+  return t;
+}
+function score(slots,asg,ctx,tg){
+  let s=0;const P=S.people.length;
+  for(const sl of slots)if(asg[sl.key]==null)s+=1000;
+  for(let i=0;i<P;i++){
+    s+=Math.abs(ctx.cnt[i]-tg[i])*12;
+    const hmn=num(S.people[i].hmMin);if(hmn)s+=Math.max(0,hmn-ctx.hm[i])*60;
+    const o=ctx.occ[i];let run=0;
+    if(S.people[i].pairPrevA){for(let j=3;j<o.length;j+=3)if(o[j]&&!o[j-1])s+=500;s+=Math.max(0,(num(S.people[i].pairMax)||0)-ctx.n[i])*30}
+    for(let j=3;j<o.length;j++){if(o[j])run++;else{if(run>1)s+=(run-1)*4;run=0}}
+    if(run>1)s+=(run-1)*4;
+    const rq=M().req[i];
+    if(rq)for(const d in rq){const r=rq[d];if(r==='on'){const b=(d-1)*3+3;if(!(o[b]||o[b+1]||o[b+2]))s+=45}else if(ORD[r]!=null){if(!o[(d-1)*3+ORD[r]+3])s+=45}}
+  }
+  return s;
+}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a}
+
+function solve(){
+  const slots=slotsOf(),mo=M(),tg=targets(slots),P=S.people.length;
+  const locked=slots.filter(sl=>mo.locks[sl.key]);
+  const free=slots.filter(sl=>!mo.locks[sl.key]);
+  const base=()=>{const ctx=newCtx(),asg={};for(const sl of locked){const v=mo.result[sl.key];if(v!=null&&v!==''){asg[sl.key]=+v;setA(ctx,+v,sl)}}return {ctx,asg}};
+  // static difficulty
+  const elig={};const c0=base().ctx;for(const sl of free){let n=0;for(let i=0;i<P;i++){if(!why(i,sl,c0))n++}elig[sl.key]=n}
+  const cands=[];
+  for(let it=0;it<S.iters;it++){
+    const {ctx,asg}=base();
+    // คู่บ่าย→ดึก: วางคู่ก่อน
+    S.people.forEach((p,i)=>{if(!p.pairPrevA)return;const pm=num(p.pairMax)||0;
+      for(const sn of shuffle(free.filter(x=>x.s==='N'))){
+        if(ctx.n[i]>=pm)break;const sa=free.find(x=>x.day===sn.day-1&&x.s==='A');
+        if(!sa||asg[sa.key]!=null||asg[sn.key]!=null||why(i,sa,ctx))continue;
+        setA(ctx,i,sa);if(why(i,sn,ctx)){unsetA(ctx,i,sa);continue}
+        setA(ctx,i,sn);asg[sa.key]=i;asg[sn.key]=i}});
+    const order=shuffle(free.slice()).sort((a,b)=>elig[a.key]-elig[b.key]);
+    for(const sl of order){
+      if(asg[sl.key]!=null)continue;
+      let best=-1,bs=-1e9;
+      for(let i=0;i<P;i++){
+        if(why(i,sl,ctx))continue;
+        const p=S.people[i],r=reqOf(i,sl.day);let w=0;
+        if(r===sl.s)w+=100;else if(r==='on')w+=60;
+        w+=(tg[i]-ctx.cnt[i])*3;
+        const hmn=num(p.hmMin);if(sl.hol&&sl.s==='M'&&hmn&&ctx.hm[i]<hmn)w+=40;
+        const o=ctx.occ[i],x=sl.t+3;if(o[x-1]||o[x+1])w-=8;
+        w+=Math.random()*7;
+        if(w>bs){bs=w;best=i}
+      }
+      if(best>=0){asg[sl.key]=best;setA(ctx,best,sl)}
+    }
+    cands.push({asg,ctx,sc:score(slots,asg,ctx,tg)});
+  }
+  cands.sort((a,b)=>a.sc-b.sc);
+  let winner=null;
+  for(const c of cands.slice(0,8)){
+    const {asg,ctx}=c;let cur=c.sc;
+    for(let pass=0;pass<4;pass++){
+      let imp=false;
+      for(const sl of shuffle(free.slice())){
+        const old=asg[sl.key];
+        for(let i=0;i<P;i++){
+          if(i===old)continue;
+          if(old!=null)unsetA(ctx,old,sl);
+          if(!why(i,sl,ctx)){
+            setA(ctx,i,sl);asg[sl.key]=i;const sc=score(slots,asg,ctx,tg);
+            if(sc<cur){cur=sc;imp=true;break}
+            unsetA(ctx,i,sl);
+          }
+          if(old!=null){setA(ctx,old,sl);asg[sl.key]=old}else delete asg[sl.key];
+        }
+      }
+      if(!imp)break;
+    }
+    if(!winner||cur<winner.sc)winner={asg,sc:cur};
+  }
+  const res={};for(const sl of slots){const v=winner.asg[sl.key];if(v!=null)res[sl.key]=v}
+  mo.result=res;save();
+}
+
+// ---------- analysis ----------
+function analyse(){
+  const slots=slotsOf(),mo=M(),ctx=newCtx(),P=S.people.length;
+  for(const sl of slots){const v=mo.result[sl.key];if(v!=null&&v!=='')setA(ctx,+v,sl)}
+  const viol={},issues=[];
+  for(const sl of slots){const v=mo.result[sl.key];if(v==null||v==='')continue;unsetA(ctx,+v,sl);const w=why(+v,sl,ctx);setA(ctx,+v,sl);if(w)viol[sl.key]=w}
+  const empty=slots.filter(sl=>mo.result[sl.key]==null||mo.result[sl.key]==='');
+  if(empty.length)issues.push(['b','ยังไม่มีคนอยู่เวร '+empty.length+' ช่อง: '+empty.map(sl=>sl.day+' '+SH[sl.s].th).join(', ')]);
+  for(const k in viol){const sl=slots.find(x=>x.key===k);issues.push(['w','วันที่ '+sl.day+' เวร'+SH[sl.s].th+' · '+S.people[mo.result[k]].name+' — '+viol[k]])}
+  const tg=targets(slots);
+  S.people.forEach((p,i)=>{
+    const hmn=num(p.hmMin);if(hmn&&ctx.hm[i]<hmn)issues.push(['w',p.name+' ได้เวรเช้าวันหยุด '+ctx.hm[i]+' เวร (ต้องการ '+hmn+')']);
+    if(num(p.target)!=null&&ctx.cnt[i]!==tg[i])issues.push(['w',p.name+' ได้ '+ctx.cnt[i]+' เวร (เป้าหมาย '+tg[i]+')']);
+    const rq=mo.req[i];if(rq)for(const d in rq){const r=rq[d];const has=s=>mo.result[d+s]===i||mo.result[d+s]===String(i);
+      if(r==='on'&&!['M','A','N'].some(has))issues.push(['w',p.name+' ขออยู่เวรวันที่ '+d+' แต่ไม่ได้เวร']);
+      else if(ORD[r]!=null&&!has(r))issues.push(['w',p.name+' ขอเวร'+SH[r].th+'วันที่ '+d+' แต่ไม่ได้'])}
+  });
+  return {slots,ctx,viol,issues,empty,tg};
+}
+function personRows(pi,slots){
+  const mo=M(),rows=[];
+  for(const sl of slots.slice().sort((a,b)=>a.t-b.t))if(+mo.result[sl.key]===pi&&mo.result[sl.key]!=='')rows.push(sl);
+  const p=S.people[pi],q=p.mode==='run'?runQuota(pi):0;
+  rows.forEach((sl,idx)=>sl.kind=p.mode==='run'?(idx<q?'หลัก':'OT'):'OT');
+  return rows;
+}
+function personSummary(pi,slots,tg){
+  const rows=personRows(pi,slots),mo=M();
+  const o={M:0,A:0,N:0,wd:0,hol:0,tot:rows.length,main:0,ot:0,leave:0,reqTot:0,reqOk:0};
+  rows.forEach(sl=>{o[sl.s]++;sl.hol?o.hol++:o.wd++;sl.kind==='หลัก'?o.main++:o.ot++});
+  const rq=mo.req[pi]||{};for(const d in rq){const r=rq[d];if(r==='L')o.leave++;
+    if(r==='on'||ORD[r]!=null){o.reqTot++;const ok=r==='on'?['M','A','N'].some(s=>+mo.result[d+s]===pi&&mo.result[d+s]!==''):(+mo.result[d+r]===pi&&mo.result[d+r]!=null&&mo.result[d+r]!=='');if(ok)o.reqOk++}}
+  o.target=tg[pi];o.quota=S.people[pi].mode==='run'?runQuota(pi):null;
+  return o;
+}
+
+// ---------- render ----------
+const $=id=>document.getElementById(id);
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function monthTitle(k=S.month){const {y,m}=parseYM(k);return MON[m-1]+' '+(y+543)}
+function headRow(clickable){
+  let h='<thead><tr><th class="name">ชื่อ</th>';
+  for(let d=1;d<=daysIn();d++){const hol=isHolDay(d),ph=isPH(d);h+=`<th class="${hol?'holcol':''} ${ph?'ph':''} ${clickable?'click':''}" ${clickable?`data-hol="${d}" title="คลิกเพื่อ${ph?'ยกเลิก':'กำหนด'}วันนักขัตฤกษ์"`:''}><span class="d">${d}</span><span class="w">${DOW[dow(d)]}</span></th>`}
+  return h+'<th>รวม</th></tr></thead>';
+}
+function render(){
+  $('monthLbl').textContent=monthTitle();
+  const A=analyse(),mo=M(),n=daysIn();
+  const filled=A.slots.length-A.empty.length;
+  $('stats').innerHTML=`<span><b>${A.slots.length}</b>เวรที่ต้องจัด</span><span><b>${filled}</b>จัดแล้ว</span><span class="${A.empty.length?'bad':''}"><b>${A.empty.length}</b>ยังว่าง</span><span><b>${workdays()}</b>วันทำการ</span><span><b>${n-workdays()}</b>วันหยุด/นักขัตฤกษ์</span>`;
+  // overview grid
+  let g=headRow(false)+'<tbody>';
+  S.people.forEach((p,i)=>{
+    g+=`<tr><th class="name"><span class="dot" style="background:var(--${PC[i]})"></span>${esc(p.name)}</th>`;let tot=0;
+    for(let d=1;d<=n;d++){const cs=['M','A','N'].filter(s=>+mo.result[d+s]===i&&mo.result[d+s]!==''&&mo.result[d+s]!=null);tot+=cs.length;const r=reqOf(i,d);
+      let inner=cs.length?`<div class="codes" style="color:var(--${PC[i]})">${cs.map(s=>SH[s].c).join('')}</div>`:(r==='L'?'<span class="chip c-L">ลา</span>':r==='off'?'<span class="c-off">·</span>':'');
+      g+=`<td class="${isHolDay(d)?'holcol':''}" style="${cs.length?`background:var(--${PC[i]}bg)`:''}">${inner}</td>`}
+    g+=`<td class="num">${tot}</td></tr>`});
+  g+='</tbody><tfoot class="foot"><tr><th class="name">ช่องว่าง</th>';
+  for(let d=1;d<=n;d++){const e=A.empty.filter(sl=>sl.day===d).length;g+=`<td class="${e?'badtxt':''}">${e?e:''}</td>`}
+  g+=`<td class="num ${A.empty.length?'badtxt':''}">${A.empty.length}</td></tr></tfoot>`;
+  $('overGrid').innerHTML=g;
+  // issues
+  $('issues').innerHTML=A.issues.length?A.issues.slice(0,60).map(([c,t])=>`<li class="${c}">${esc(t)}</li>`).join('')+(A.issues.length>60?`<li>…และอีก ${A.issues.length-60} รายการ</li>`:''):'<li class="ok">ครบทุกช่องและตรงตามเงื่อนไขทั้งหมด</li>';
+  // day table
+  let t='<thead><tr><th>วันที่</th><th>เวรเช้า</th><th>เวรบ่าย</th><th>เวรดึก</th></tr></thead><tbody>';
+  for(let d=1;d<=n;d++){const hol=isHolDay(d);
+    t+=`<tr class="${hol?'holrow':''}"><td class="date"><span class="num">${d}</span> ${DOWF[dow(d)]}${isPH(d)?'<div class="type">นักขัตฤกษ์</div>':''}</td>`;
+    ['M','A','N'].forEach(s=>{
+      if(!hol&&s==='M'){t+='<td><span class="na">—</span></td>';return}
+      const k=d+s,v=mo.result[k],has=v!=null&&v!=='',lk=!!mo.locks[k],w=A.viol[k];
+      t+=`<td><div class="slot"><select data-slot="${k}" class="${!has?'empty':w?'warn':''}" ${w?`title="${esc(w)}"`:''} aria-label="วันที่ ${d} เวร${SH[s].th}"><option value="">— ว่าง —</option>${S.people.map((p,i)=>`<option value="${i}" ${has&&+v===i?'selected':''}>${esc(p.name)}</option>`).join('')}</select><button class="lock ${lk?'on':''}" data-lock="${k}" title="${lk?'ปลดล็อก':'ล็อกช่องนี้'}" aria-label="ล็อก">${lk?'🔒':'🔓'}</button></div></td>`;
+    });
+    t+='</tr>'}
+  $('dayTable').innerHTML=t+'</tbody>';
+  // request grid
+  let r=headRow(true)+'<tbody>';
+  S.people.forEach((p,i)=>{r+=`<tr><th class="name"><span class="dot" style="background:var(--${PC[i]})"></span>${esc(p.name)}</th>`;let c=0;
+    for(let d=1;d<=n;d++){const v=reqOf(i,d);if(v)c++;r+=`<td class="req ${isHolDay(d)?'holcol':''}" data-req="${i}-${d}" tabindex="0">${v?`<span class="chip ${REQ[v].cls}">${REQ[v].lbl}</span>`:''}</td>`}
+    r+=`<td><button class="btn small" data-clr="${i}" ${c?'':'disabled'}>ล้าง</button></td></tr>`});
+  $('reqGrid').innerHTML=r+'</tbody>';
+  // summary
+  let su='<thead><tr><th>ชื่อ</th><th>เช้า</th><th>บ่าย</th><th>ดึก</th><th>วันธรรมดา</th><th>วันหยุด</th><th>รวม</th><th>เป้าหมาย</th><th>เวรหลัก</th><th>OT</th><th>วันลา</th><th>ได้ตามที่ขอ</th></tr></thead><tbody>';
+  const tt={M:0,A:0,N:0,wd:0,hol:0,tot:0,main:0,ot:0,leave:0};
+  S.people.forEach((p,i)=>{const o=personSummary(i,A.slots,A.tg);Object.keys(tt).forEach(k=>tt[k]+=o[k]);
+    su+=`<tr><td><span class="dot" style="background:var(--${PC[i]})"></span>${esc(p.name)}</td><td>${o.M}</td><td>${o.A}</td><td>${o.N}</td><td>${o.wd}</td><td>${o.hol}</td><td class="tot">${o.tot}</td><td>${o.target}${num(p.max)?' / สูงสุด '+p.max:''}</td><td>${o.quota!=null?o.main+' / '+o.quota:'—'}</td><td>${o.ot}</td><td>${o.leave}</td><td>${o.reqTot?o.reqOk+' / '+o.reqTot:'—'}</td></tr>`});
+  su+=`<tr><td class="tot">รวม</td><td>${tt.M}</td><td>${tt.A}</td><td>${tt.N}</td><td>${tt.wd}</td><td>${tt.hol}</td><td class="tot">${tt.tot}</td><td></td><td>${tt.main}</td><td>${tt.ot}</td><td>${tt.leave}</td><td></td></tr>`;
+  $('sumTable').innerHTML=su+'</tbody>';
+}
+function renderSettings(){
+  $('maxRun').value=S.maxRun;$('iters').value=S.iters;
+  const cols=[...DOW,'นข'];
+  $('pset').innerHTML=S.people.map((p,i)=>`<div class="pcard"><h3><span class="dot" style="background:var(--${PC[i]})"></span>คนที่ ${i+1}</h3>
+   <div class="fields">
+    <label style="grid-column:1/-1">ชื่อ<input data-f="name" data-p="${i}" id="nm${i}" value="${esc(p.name)}"></label>
+    <label>การนับเวร<select data-f="mode" data-p="${i}" id="md${i}"><option value="ot" ${p.mode==='ot'?'selected':''}>OT ทั้งหมด</option><option value="run" ${p.mode==='run'?'selected':''}>รันเวร (วันทำการ = หลัก)</option></select></label>
+    <label>เพดานเวร/เดือน<input type="number" min="0" data-f="max" data-p="${i}" id="mx${i}" value="${p.max??''}"></label>
+    <label>เป้าหมาย (ว่าง = ที่เหลือ)<input type="number" min="0" data-f="target" data-p="${i}" id="tg${i}" value="${p.target??''}"></label>
+    <label>เวรวันหยุดรวม สูงสุด<input type="number" min="0" data-f="hdMax" data-p="${i}" id="hd${i}" value="${p.hdMax??''}"></label>
+    <label>เช้าวันหยุด ขั้นต่ำ<input type="number" min="0" data-f="hmMin" data-p="${i}" id="hn${i}" value="${p.hmMin??''}"></label>
+    <label>เช้าวันหยุด สูงสุด<input type="number" min="0" data-f="hmMax" data-p="${i}" id="hx${i}" value="${p.hmMax??''}"></label>
+    <label class="chk" style="grid-column:1/-1"><input type="checkbox" data-f="pairPrevA" data-p="${i}" id="pa${i}" ${p.pairPrevA?'checked':''}> ถ้าอยู่เวรดึก ต้องได้เวรบ่ายวันก่อนหน้าคู่กัน</label>
+    <label>จำนวนคู่บ่าย→ดึก/เดือน<input type="number" min="0" data-f="pairMax" data-p="${i}" id="pm${i}" value="${p.pairMax??''}"></label>
+    <label class="chk" style="grid-column:1/-1"><input type="checkbox" data-f="noAN" data-p="${i}" id="an${i}" ${p.noAN?'checked':''}> ห้ามบ่ายต่อดึก เมื่อเวรบ่ายตรงวันจันทร์–ศุกร์</label>
+   </div>
+   <div style="overflow-x:auto"><table class="allow"><thead><tr><th></th>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>
+   ${['M','A','N'].map(s=>`<tr><td>เวร${SH[s].th}</td>${cols.map((c,j)=>`<td><input type="checkbox" id="al${i}${s}${j}" data-al="${i}|${s}|${j}" ${p.allow[s][j]?'checked':''} aria-label="${SH[s].th} ${c}"></td>`).join('')}</tr>`).join('')}
+   </tbody></table></div></div>`).join('');
+}
+
+// ---------- events ----------
+function toast(t){const e=$('toast');e.textContent=t;e.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>e.hidden=true,2600)}
+function run(){document.body.classList.add('busy');$('runBtn').textContent='กำลังจัด…';setTimeout(()=>{try{solve()}finally{document.body.classList.remove('busy');$('runBtn').textContent='จัดเวรอัตโนมัติ'}render();const e=analyse().empty.length;toast(e?`จัดเสร็จ ยังว่าง ${e} ช่อง`:'จัดเวรครบทุกช่องแล้ว')},30)}
+$('runBtn').onclick=run;
+function shiftMonth(dm){const {y,m}=parseYM(S.month);const d=new Date(y,m-1+dm,1);S.month=ym(d.getFullYear(),d.getMonth()+1);const mo=M();save();if(!Object.keys(mo.result).length)run();else render()}
+$('prevM').onclick=()=>shiftMonth(-1);$('nextM').onclick=()=>shiftMonth(1);
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected',x===b));['sched','req','sum','set'].forEach(t=>$('tab-'+t).hidden=t!==b.dataset.tab);if(b.dataset.tab==='set')renderSettings()});
+
+$('dayTable').addEventListener('change',e=>{const k=e.target.dataset.slot;if(!k)return;const mo=M();if(e.target.value==='')delete mo.result[k];else mo.result[k]=+e.target.value;mo.locks[k]=true;save();render()});
+$('dayTable').addEventListener('click',e=>{const b=e.target.closest('[data-lock]');if(!b)return;const mo=M(),k=b.dataset.lock;if(mo.locks[k])delete mo.locks[k];else mo.locks[k]=true;save();render()});
+$('unlockAll').onclick=()=>{M().locks={};save();render();toast('ปลดล็อกทุกช่องแล้ว')};
+let clearArm=0;$('clearAll').onclick=e=>{if(Date.now()-clearArm>3000){clearArm=Date.now();e.target.textContent='กดอีกครั้งเพื่อยืนยัน';setTimeout(()=>e.target.textContent='ล้างตารางเดือนนี้',3000);return}const mo=M();mo.result={};mo.locks={};save();render();e.target.textContent='ล้างตารางเดือนนี้';toast('ล้างตารางแล้ว')};
+
+const pop=$('pop');let popT=null;
+function openPop(cell){const [pi,d]=cell.dataset.req.split('-').map(Number);popT={pi,d};
+  pop.innerHTML=`<div class="ttl">${esc(S.people[pi].name)} · ${d} ${MONS[parseYM(S.month).m-1]} (${DOWF[dow(d)]})</div>`+Object.entries(REQ).map(([k,v])=>`<button data-v="${k}"><span class="chip ${v.cls}" style="min-width:2.4em;text-align:center">${v.lbl}</span>${v.menu}</button>`).join('')+`<button data-v=""><span class="chip" style="min-width:2.4em"></span>ไม่ระบุ</button>`;
+  pop.hidden=false;const r=cell.getBoundingClientRect();const w=pop.offsetWidth,h=pop.offsetHeight;
+  pop.style.left=Math.max(8,Math.min(innerWidth-w-8,r.left))+'px';pop.style.top=(r.bottom+h+8>innerHeight?Math.max(8,r.top-h-4):r.bottom+4)+'px';pop.querySelector('button').focus()}
+$('reqGrid').addEventListener('click',e=>{const c=e.target.closest('[data-req]');if(c){e.stopPropagation();openPop(c);return}
+  const h=e.target.closest('[data-hol]');if(h){const d=+h.dataset.hol,mo=M(),i=mo.holidays.indexOf(d);if(i>=0)mo.holidays.splice(i,1);else mo.holidays.push(d);
+    for(const k of Object.keys(mo.result))if(!isHolDay(parseInt(k))&&k.endsWith('M')){delete mo.result[k];delete mo.locks[k]}save();render();toast(i>=0?`ยกเลิกนักขัตฤกษ์วันที่ ${d}`:`กำหนดวันที่ ${d} เป็นนักขัตฤกษ์ — กดจัดเวรอัตโนมัติอีกครั้ง`);return}
+  const b=e.target.closest('[data-clr]');if(b){M().req[b.dataset.clr]={};save();render()}});
+$('reqGrid').addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.dataset.req){e.preventDefault();openPop(e.target)}});
+pop.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||!popT)return;const mo=M();mo.req[popT.pi]=mo.req[popT.pi]||{};if(b.dataset.v)mo.req[popT.pi][popT.d]=b.dataset.v;else delete mo.req[popT.pi][popT.d];pop.hidden=true;save();render()});
+document.addEventListener('click',e=>{if(!pop.hidden&&!pop.contains(e.target))pop.hidden=true});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')pop.hidden=true});
+
+$('pset').addEventListener('change',e=>{const el=e.target;
+  if(el.dataset.al){const [i,s,j]=el.dataset.al.split('|');S.people[+i].allow[s][+j]=el.checked}
+  else if(el.dataset.f){const p=S.people[+el.dataset.p],f=el.dataset.f;p[f]=el.type==='checkbox'?el.checked:(el.type==='number'?(el.value===''?'':+el.value):el.value)}
+  save();render()});
+$('maxRun').onchange=e=>{S.maxRun=Math.max(1,+e.target.value||3);save();render()};
+$('iters').onchange=e=>{S.iters=Math.max(20,+e.target.value||300);save()};
+let resetArm=0;$('resetSet').onclick=e=>{if(Date.now()-resetArm>3000){resetArm=Date.now();e.target.textContent='กดอีกครั้งเพื่อยืนยัน';setTimeout(()=>e.target.textContent='คืนค่าเงื่อนไขตั้งต้น',3000);return}S.people=defaultPeople();S.maxRun=3;save();renderSettings();render();e.target.textContent='คืนค่าเงื่อนไขตั้งต้น';toast('คืนค่าเงื่อนไขแล้ว')};
+
+// ---------- export ----------
+async function saveFile(filename,data){
+  try{
+    if(window.claude&&window.claude.use){const dl=await window.claude.use('downloads');
+      if(dl){try{await dl.save({filename,data});toast('บันทึกไฟล์ '+filename);}catch(err){if(err&&err.code!=='declined')toast('บันทึกไฟล์ไม่สำเร็จ: '+(err.message||err.code))}return}}
+    const url=URL.createObjectURL(data instanceof Blob?data:new Blob([data]));const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
+  }catch(err){toast('บันทึกไฟล์ไม่สำเร็จ')}
+}
+function dateTH(d){const {y,m}=parseYM(S.month);return d+' '+MONS[m-1]+' '+String(y+543).slice(2)}
+function dayType(d){return isPH(d)?'นักขัตฤกษ์':isHolDay(d)?'วันหยุด':'วันธรรมดา'}
+function nameAt(k){const v=M().result[k];return v==null||v===''?'':S.people[+v].name}
+function sheetOverview(A){
+  const n=daysIn(),mo=M(),aoa=[['ตารางเวรผู้ช่วยเหลือคนไข้ ประจำเดือน '+monthTitle()],[]];
+  const h1=['ชื่อ'],h2=[''];for(let d=1;d<=n;d++){h1.push(d);h2.push(DOW[dow(d)]+(isPH(d)?' นข':''))}h1.push('รวม');h2.push('');aoa.push(h1,h2);
+  S.people.forEach((p,i)=>{const row=[p.name];let t=0;for(let d=1;d<=n;d++){const cs=['M','A','N'].filter(s=>mo.result[d+s]!=null&&mo.result[d+s]!==''&&+mo.result[d+s]===i);t+=cs.length;const r=reqOf(i,d);row.push(cs.length?cs.map(s=>SH[s].c).join(''):(r==='L'?'ลา':''))}row.push(t);aoa.push(row)});
+  aoa.push([],['ช = เช้า 08.00–16.00, บ = บ่าย 16.00–24.00, ด = ดึก 00.00–08.00 ของวันที่นั้น, นข = นักขัตฤกษ์'],[]);
+  aoa.push(['สรุป','เช้า','บ่าย','ดึก','วันธรรมดา','วันหยุด','รวม','เวรหลัก','OT','วันลา']);
+  S.people.forEach((p,i)=>{const o=personSummary(i,A.slots,A.tg);aoa.push([p.name,o.M,o.A,o.N,o.wd,o.hol,o.tot,o.quota!=null?o.main:'',o.ot,o.leave])});
+  const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:22},...Array(n).fill({wch:4}),{wch:6}];ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:10}}];return ws;
+}
+function sheetDaily(){
+  const n=daysIn(),aoa=[['ตารางเวรรายวัน ประจำเดือน '+monthTitle()],[],['วันที่','วัน','ประเภทวัน','เวรเช้า (08–16)','เวรบ่าย (16–24)','เวรดึก (00–08)']];
+  for(let d=1;d<=n;d++){const hol=isHolDay(d);aoa.push([dateTH(d),DOWF[dow(d)],dayType(d),hol?nameAt(d+'M'):'—',nameAt(d+'A'),nameAt(d+'N')])}
+  const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:11},{wch:10},{wch:11},{wch:22},{wch:22},{wch:22}];return ws;
+}
+function sheetPerson(i,A){
+  const p=S.people[i],o=personSummary(i,A.slots,A.tg),rows=personRows(i,A.slots);
+  const aoa=[[p.name+' — ตารางเวรเดือน '+monthTitle()],[],['เช้า',o.M,'บ่าย',o.A,'ดึก',o.N,'รวม',o.tot],['วันธรรมดา',o.wd,'วันหยุด',o.hol,'เวรหลัก',o.quota!=null?o.main+' / '+o.quota:'-','OT',o.ot],['วันลา',o.leave],[],['วันที่','วัน','ประเภทวัน','เวร','เวลา','นับเป็น']];
+  rows.forEach(sl=>aoa.push([dateTH(sl.day),DOWF[dow(sl.day)],dayType(sl.day),SH[sl.s].th,SH[sl.s].time,sl.kind]));
+  const lv=Object.entries(M().req[i]||{}).filter(([d,v])=>v==='L').map(([d])=>dateTH(+d));if(lv.length)aoa.push([],['วันลา',lv.join(', ')]);
+  const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:12},{wch:10},{wch:12},{wch:8},{wch:13},{wch:9},{wch:6},{wch:6}];return ws;
+}
+function sname(s){return s.replace(/[\\\/\?\*\[\]:]/g,'').slice(0,31)}
+async function exportWB(kind){
+  if(typeof XLSX==='undefined'){toast('โหลดตัวสร้างไฟล์ Excel ไม่สำเร็จ ลองรีเฟรชหน้า');return}
+  const A=analyse(),wb=XLSX.utils.book_new(),tag=S.month;let fn;
+  if(kind==='overview'){XLSX.utils.book_append_sheet(wb,sheetOverview(A),'ภาพรวม');XLSX.utils.book_append_sheet(wb,sheetDaily(),'รายวัน');S.people.forEach((p,i)=>XLSX.utils.book_append_sheet(wb,sheetPerson(i,A),sname(p.name.split(' ')[0])));fn='ตารางเวร_ภาพรวม_'+tag+'.xlsx'}
+  else if(kind==='daily'){XLSX.utils.book_append_sheet(wb,sheetDaily(),'รายวัน');fn='ตารางเวร_รายวัน_'+tag+'.xlsx'}
+  else{S.people.forEach((p,i)=>XLSX.utils.book_append_sheet(wb,sheetPerson(i,A),sname(p.name.split(' ')[0])));fn='ตารางเวร_รายบุคคล_'+tag+'.xlsx'}
+  const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});
+  await saveFile(fn,new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+}
+$('exOverview').onclick=()=>exportWB('overview');$('exDaily').onclick=()=>exportWB('daily');$('exPerson').onclick=()=>exportWB('person');
+$('backup').onclick=()=>saveFile('ตารางเวร_สำรอง_'+S.month+'.json',new Blob([JSON.stringify(S,null,1)],{type:'application/json'}));
+$('restoreFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d.people)||!d.months)throw 0;S=d;save();renderSettings();render();toast('นำเข้าข้อมูลแล้ว')}catch(err){toast('ไฟล์นี้ไม่ใช่ไฟล์สำรองของโปรแกรมนี้')}};r.readAsText(f);e.target.value=''};
+
+// boot
+M();if(upgraded)save();if(upgraded||!Object.keys(M().result).length){render();run()}else render();
+})();
+</script>
+
+</body>
+</html>
